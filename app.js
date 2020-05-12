@@ -1,9 +1,14 @@
 const express = require('express')
 var convert = require('xml-js');
+var fs = require('fs')
 const app = express()
 const port = 3000
 
 app.get('/', (req, res) => res.send('Hello World!'))
+
+var finalArr = [];
+
+var sourceAndConnections = [];
 
 
 var xml =
@@ -76,9 +81,76 @@ var xml =
     </mxGraphModel>
   </diagram>
 </mxfile>`;
-var result1 = convert.xml2json(xml, {compact: true, spaces: 4});
-var result2 = convert.xml2json(xml, {compact: false, spaces: 4});
-console.log(result1, '\n', result2);
 
+
+var result1 = convert.xml2json(xml, {compact: true, spaces: 4});
+//var result2 = convert.xml2json(xml, {compact: false, spaces: 4});
+//console.log(result1);
+//fs.writeFileSync("/tmp/test", JSON.stringify(result1))
+
+var parsedRes = JSON.parse(result1);
+
+for (let i = 0; i < parsedRes.mxfile.diagram.length; i++){
+    finalArr.push(["D"+i +",,"+parsedRes.mxfile.diagram[i]._attributes.name+","])
+
+    for ( let j = 0 ; j < parsedRes.mxfile.diagram[i].mxGraphModel.root.mxCell.length ; j++){
+
+            if ( parsedRes.mxfile.diagram[i].mxGraphModel.root.mxCell[j]._attributes.style != undefined && parsedRes.mxfile.diagram[i].mxGraphModel.root.mxCell[j]._attributes.style.indexOf("rounded") > -1 && parsedRes.mxfile.diagram[i].mxGraphModel.root.mxCell[j]._attributes.style.indexOf("edgeStyle") == -1)
+                {
+                console.log(parsedRes.mxfile.diagram[i].mxGraphModel.root.mxCell[j]._attributes.value);
+
+                sourceAndConnections.push({
+                    "qName" : parsedRes.mxfile.diagram[i].mxGraphModel.root.mxCell[j]._attributes.value,
+                    "qId" : parsedRes.mxfile.diagram[i].mxGraphModel.root.mxCell[j]._attributes.id,
+                    "qOptions" : []
+                })
+
+            }
+    }
+
+}
+
+
+
+// parsedRes.mxfile.diagram.forEach(element => {
+// });
+
+console.log(finalArr);
+
+console.log(sourceAndConnections);
+
+
+for (let i = 0; i < parsedRes.mxfile.diagram.length; i++){
+
+    for ( let j = 0 ; j < parsedRes.mxfile.diagram[i].mxGraphModel.root.mxCell.length ; j++){
+
+            if ( parsedRes.mxfile.diagram[i].mxGraphModel.root.mxCell[j]._attributes.style != undefined  && 
+                 parsedRes.mxfile.diagram[i].mxGraphModel.root.mxCell[j]._attributes.style.indexOf("edgeStyle") > -1 
+            )
+                {
+                   for( let p = 0; p < sourceAndConnections.length; p++){
+                    console.log("Source P : "+JSON.stringify(sourceAndConnections[p]));
+                 //   console.log("Target = "  +parsedRes.mxfile.diagram[i].mxGraphModel.root.mxCell[j]._attributes.target)
+                 //   console.log("SOURCE = "  +parsedRes.mxfile.diagram[i].mxGraphModel.root.mxCell[j]._attributes.source)
+
+                        if(parsedRes.mxfile.diagram[i].mxGraphModel.root.mxCell[j]._attributes.source == sourceAndConnections[p].qId){
+
+                            sourceAndConnections[p].qOptions.push(parsedRes.mxfile.diagram[i].mxGraphModel.root.mxCell[j]._attributes.target)
+
+                        }
+                   }
+
+            }
+    }
+
+}
+console.log("NEW --- " + JSON.stringify(sourceAndConnections,null,4));
+
+app.get("/api", function(req, res){
+
+    fs.writeFileSync("/tmp/test", JSON.stringify(result1))
+    res.send(result1)
+
+})
 
 app.listen(port, () => console.log(`Example app listening at http://localhost:${port}`)) 
